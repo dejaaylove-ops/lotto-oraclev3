@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#00f5a0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Oracle">
+<meta name="description" content="Lottery Oracle — Numerology × Statistics × Monte Carlo">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Lottery Oracle</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #070d1a;
+  --surface: #0e1829;
+  --surface2: #162035;
+  --border: #1e3050;
+  --accent: #00f5a0;
+  --accent2: #00c3ff;
+  --hot: #22c55e;
+  --cold: #94a3b8;
+  --neutral: #f59e0b;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --radius: 14px;
+  --font: 'Syne', sans-serif;
+  --mono: 'Space Mono', monospace;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Animated background */
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.07;
+  animation: drift 20s ease-in-out infinite;
+}
+
+.bg-orb:nth-child(1) { width: 600px; height: 600px; background: var(--accent); top: -200px; left: -200px; animation-delay: 0s; }
+.bg-orb:nth-child(2) { width: 400px; height: 400px; background: var(--accent2); bottom: -150px; right: -100px; animation-delay: -7s; }
+.bg-orb:nth-child(3) { width: 300px; height: 300px; background: #7c3aed; top: 50%; left: 50%; animation-delay: -14s; }
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+/* Stars */
+.stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stars::before, .stars::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 8%, rgba(0,245,160,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 65%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 88% 42%, rgba(0,195,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 25% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 30%, rgba(0,245,160,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 5%  55%, rgba(255,255,255,0.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 92% 78%, rgba(0,195,255,0.3) 0%, transparent 100%);
+}
+
+/* Layout */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: calc(16px + var(--safe-top)) 16px calc(80px + var(--safe-bottom));
+}
+
+/* Install banner */
+.install-banner {
+  display: none;
+  background: linear-gradient(135deg, rgba(0,245,160,0.1), rgba(0,195,255,0.1));
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  align-items: center;
+  gap: 12px;
+  animation: slideDown 0.4s ease;
+}
+
+.install-banner.visible { display: flex; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.install-banner .install-text {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.install-banner .install-text strong {
+  color: var(--accent);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.btn-install {
+  background: var(--accent);
+  color: #070d1a;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  font-family: var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px;
+  line-height: 1;
+}
+
+/* Offline indicator */
+.offline-bar {
+  display: none;
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: #fca5a5;
+  text-align: center;
+}
+
+.offline-bar.visible { display: block; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 24px 0 32px;
+}
+
+.header-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  background: radial-gradient(circle at 40% 40%, var(--surface2), var(--bg));
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 0 32px rgba(0,245,160,0.2);
+  animation: glow 3s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,245,160,0.2); }
+  50% { box-shadow: 0 0 48px rgba(0,245,160,0.4), 0 0 80px rgba(0,245,160,0.1); }
+}
+
+.header h1 {
+  font-size: clamp(1.8rem, 6vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-sub {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  animation: fadeUp 0.5s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.10s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.20s; }
+
+.card-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Form controls */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-grid .full { grid-column: 1 / -1; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.field select,
+.field input[type="text"],
+.field input[type="date"] {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+  width: 100%;
+}
+
+.field select:focus,
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,245,160,0.1);
+}
+
+.field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.4);
+}
+
+/* Range slider */
+.range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-wrap input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 4px;
+  outline: none;
+}
+
+.range-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0,245,160,0.5);
+}
+
+.range-val {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+  min-width: 56px;
+  text-align: right;
+}
+
+/* Generate button */
+.btn-oracle {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #070d1a;
+  border: none;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  font-family: var(--font);
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-oracle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.btn-oracle:hover::before { opacity: 1; }
+.btn-oracle:active { transform: scale(0.98); }
+.btn-oracle.loading { opacity: 0.7; pointer-events: none; }
+
+.btn-oracle .spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(7,13,26,0.3);
+  border-top-color: #070d1a;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.btn-oracle.loading .spinner { display: block; }
+.btn-oracle.loading .btn-text { opacity: 0.7; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Numerology row */
+.num-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.num-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  transition: border-color 0.3s;
+}
+
+.num-box.lit { border-color: var(--accent); }
+
+.num-box-label {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.num-box-val {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+  transition: all 0.3s;
+}
+
+/* Stats chips */
+.stat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-row-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--muted);
+  width: 46px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  transition: transform 0.15s;
+  cursor: default;
+}
+
+.chip:hover { transform: scale(1.15); }
+.chip.hot { background: rgba(34,197,94,0.15); color: var(--hot); border: 1.5px solid rgba(34,197,94,0.5); }
+.chip.cold { background: rgba(148,163,184,0.1); color: var(--cold); border: 1.5px solid rgba(148,163,184,0.3); }
+.chip.gap { background: rgba(0,195,255,0.1); color: var(--accent2); border: 1.5px solid rgba(0,195,255,0.3); }
+
+/* Tickets */
+.tickets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ticket-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.ticket-row:hover { border-color: rgba(0,245,160,0.3); }
+
+.ticket-idx {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.ticket-balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.ball {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: default;
+  position: relative;
+}
+
+.ball:hover { transform: scale(1.15); z-index: 2; }
+
+.ball.hot {
+  background: rgba(34,197,94,0.12);
+  color: var(--hot);
+  border: 2px solid rgba(34,197,94,0.6);
+  box-shadow: 0 0 10px rgba(34,197,94,0.2);
+}
+
+.ball.cold {
+  background: rgba(148,163,184,0.08);
+  color: var(--cold);
+  border: 2px solid rgba(148,163,184,0.3);
+}
+
+.ball.neutral {
+  background: rgba(245,158,11,0.08);
+  color: var(--neutral);
+  border: 2px solid rgba(245,158,11,0.4);
+}
+
+.ticket-copy {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.ticket-copy:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ticket-copy.copied {
+  border-color: var(--hot);
+  color: var(--hot);
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Charts */
+.chart-wrap {
+  position: relative;
+  margin-top: 4px;
+}
+
+canvas {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* AI Panel */
+.ai-panel {
+  background: linear-gradient(135deg, rgba(0,245,160,0.03), rgba(0,195,255,0.03));
+  border: 1px solid rgba(0,245,160,0.3);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+
+.ai-text {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.9;
+  color: #94a3b8;
+}
+
+.ai-text strong { color: var(--accent); }
+
+/* Bottom nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(7,13,26,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  padding: 10px 24px calc(10px + var(--safe-bottom));
+  display: flex;
+  justify-content: space-around;
+  z-index: 100;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  transition: color 0.2s, background 0.2s;
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.nav-btn .nav-icon { font-size: 1.2rem; }
+
+.nav-btn.active {
+  color: var(--accent);
+  background: rgba(0,245,160,0.08);
+}
+
+/* History tab */
+.history-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.history-empty .big { font-size: 2rem; margin-bottom: 12px; }
+
+.history-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.history-meta {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.history-balls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.history-ball {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* Settings tab */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-row:last-child { border-bottom: none; }
+
+.settings-label {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.settings-sub {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle input { opacity: 0; width: 0; height: 0; }
+
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle input:checked + .toggle-track { background: var(--accent); }
+
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+}
+
+.toggle input:checked + .toggle-track::after { transform: translateX(20px); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: 100px;
+  padding: 10px 20px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  white-space: nowrap;
+  z-index: 200;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Tabs */
+.tab { display: none; }
+.tab.active { display: block; }
+
+/* Version badge */
+.version-badge {
+  text-align: center;
+  padding: 10px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: rgba(100,116,139,0.4);
+  letter-spacing: 2px;
+}
+</style>
+</head>
+<body>
+
+<div class="bg-layer">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+<div class="stars"></div>
+
+<div class="app">
+
+  <!-- Install Banner -->
+  <div class="install-banner" id="installBanner">
+    <div class="install-text">
+      <strong>Install Lottery Oracle</strong>
+      Add to home screen for offline access
+    </div>
+    <button class="btn-install" id="btnInstall">Install</button>
+    <button class="btn-dismiss" id="btnDismiss">✕</button>
+  </div>
+
+  <!-- Offline Bar -->
+  <div class="offline-bar" id="offlineBar">
+    ⚠ You're offline — using cached draw data
+  </div>
+
+  <!-- ── TAB: ORACLE ── -->
+  <div class="tab active" id="tab-oracle">
+
+    <div class="header">
+      <div class="header-icon">🔮</div>
+      <h1>LOTTERY ORACLE</h1>
+      <div class="header-sub">Numerology × Statistics × Monte Carlo</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="card-label">Configuration</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Lottery</label>
+          <select id="lotterySelect">
+            <option value="euroMillions">EuroMillions</option>
+            <option value="belgianLotto">Belgian Lotto</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Draw Range</label>
+          <select id="lastND">
+            <option value="all">All Draws</option>
+            <option value="50">Last 50</option>
+            <option value="100">Last 100</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Your Name</label>
+          <input type="text" id="name" placeholder="Enter name" autocomplete="name">
+        </div>
+        <div class="field">
+          <label>Birth Date</label>
+          <input type="date" id="birthdate">
+        </div>
+        <div class="field full">
+          <label>Monte Carlo Runs</label>
+          <div class="range-wrap">
+            <input type="range" id="mcRunsSlider" min="1000" max="50000" step="1000" value="10000">
+            <span class="range-val" id="mcRunsLabel">10,000</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn-oracle" id="btnOracle" onclick="runOracle()">
+        <div class="spinner"></div>
+        <span class="btn-text">⚡ Generate Tickets</span>
+      </button>
+    </div>
+
+    <!-- Numerology -->
+    <div class="card">
+      <div class="card-label">Numerology</div>
+      <div class="num-row">
+        <div class="num-box" id="boxLP">
+          <div class="num-box-label">Life Path</div>
+          <div class="num-box-val" id="valLP">—</div>
+        </div>
+        <div class="num-box" id="boxPY">
+          <div class="num-box-label">Pers. Year</div>
+          <div class="num-box-val" id="valPY">—</div>
+        </div>
+        <div class="num-box" id="boxDN">
+          <div class="num-box-label">Destiny</div>
+          <div class="num-box-val" id="valDN">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="card-label">Number Statistics</div>
+      <div class="stat-rows">
+        <div class="stat-row">
+          <div class="stat-row-label">🔥 Hot</div>
+          <div class="chips" id="chipsHot"></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-label">🧊 Cold</div>
+          <div class="chips" id="chipsCold"></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-label">⏳ Gap</div>
+          <div class="chips" id="chipsGap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monte Carlo Chart -->
+    <div class="card">
+      <div class="card-label">Monte Carlo Distribution</div>
+      <div class="chart-wrap">
+        <canvas id="freqChart" height="180"></canvas>
+      </div>
+    </div>
+
+    <!-- Pair Heatmap -->
+    <div class="card">
+      <div class="card-label">Number Pair Heatmap</div>
+      <div class="chart-wrap">
+        <canvas id="pairChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- Tickets -->
+    <div class="card">
+      <div class="card-label">Generated Tickets</div>
+      <div class="tickets-list" id="ticketsList">
+        <div style="text-align:center; padding:24px; color:var(--muted); font-family:var(--mono); font-size:0.8rem;">
+          Hit Generate to create your tickets
+        </div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--hot)"></div>Hot</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cold)"></div>Cold</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--neutral)"></div>Neutral</div>
+      </div>
+    </div>
+
+    <!-- Oracle Analysis -->
+    <div class="ai-panel">
+      <div class="card-label" style="margin-bottom:12px">Oracle Analysis</div>
+      <div class="ai-text" id="aiText">Run the Oracle to generate your personalized analysis...</div>
+    </div>
+
+    <div class="version-badge">LOTTERY ORACLE v3 · PWA</div>
+
+  </div><!-- /tab-oracle -->
+
+  <!-- ── TAB: HISTORY ── -->
+  <div class="tab" id="tab-history">
+    <div class="header" style="padding-top:16px">
+      <h1 style="font-size:1.8rem">HISTORY</h1>
+      <div class="header-sub">Your saved tickets</div>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- ── TAB: SETTINGS ── -->
+  <div class="tab" id="tab-settings">
+    <div class="header" style="padding-top:16px">
+      <h1 style="font-size:1.8rem">SETTINGS</h1>
+      <div class="header-sub">Preferences</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Preferences</div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Auto-save tickets</div>
+          <div class="settings-sub">Save each generation to history</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togAutoSave" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Notify on draw days</div>
+          <div class="settings-sub">EuroMillions: Tue/Fri · Lotto: Wed/Sat</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togNotify">
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Remember profile</div>
+          <div class="settings-sub">Save name & birthdate locally</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="togRemember" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Data</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Clear history</div>
+          <div class="settings-sub">Remove all saved tickets</div>
+        </div>
+        <button onclick="clearHistory()" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-family:var(--mono);cursor:pointer;">
+          Clear
+        </button>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">App version</div>
+          <div class="settings-sub">Lottery Oracle v3 PWA</div>
+        </div>
+        <span style="font-family:var(--mono);font-size:0.75rem;color:var(--accent)">3.0.0</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-oracle" onclick="switchTab('oracle')">
+    <span class="nav-icon">🔮</span>Oracle
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="switchTab('history')">
+    <span class="nav-icon">📋</span>History
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="switchTab('settings')">
+    <span class="nav-icon">⚙️</span>Settings
+  </button>
+</nav>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW failed:', err));
+  });
+}
+
+// ── Online / Offline ──────────────────────────────────────────────────────────
+function updateOnlineStatus() {
+  document.getElementById('offlineBar').classList.toggle('visible', !navigator.onLine);
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ── Install Prompt ─────────────────────────────────────────────────────────────
+let deferredPrompt = null;
+const installBanner = document.getElementById('installBanner');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem('installDismissed')) {
+    installBanner.classList.add('visible');
+  }
+});
+
+document.getElementById('btnInstall').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('✅ Oracle installed!');
+  deferredPrompt = null;
+  installBanner.classList.remove('visible');
+});
+
+document.getElementById('btnDismiss').addEventListener('click', () => {
+  installBanner.classList.remove('visible');
+  localStorage.setItem('installDismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.classList.remove('visible');
+  showToast('✅ Oracle installed!');
+});
+
+// ── Tab Navigation ────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+  if (name === 'history') renderHistory();
+  window.scrollTo(0,0);
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+function showToast(msg, duration=2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Numerology ────────────────────────────────────────────────────────────────
+function reduceNum(n) {
+  while (n > 9) n = String(n).split('').reduce((a,b) => a + +b, 0);
+  return n;
+}
+function lifePath(date) {
+  const digits = date.replace(/-/g,'').split('').map(Number).reduce((a,b)=>a+b,0);
+  return reduceNum(digits);
+}
+function personalYear(date) {
+  const year = new Date().getFullYear();
+  const [y, m, d] = date.split('-');
+  return reduceNum(+d + +m + +y.slice(2) + year);
+}
+function destinyNumber(name) {
+  const vals = name.toUpperCase().replace(/[^A-Z]/g,'').split('').map(l => l.charCodeAt(0)-64);
+  return reduceNum(vals.reduce((a,b)=>a+b,0));
+}
+
+// ── Draw Data ──────────────────────────────────────────────────────────────────
+const belgianLottoDraws = [
+  [1,5,12,18,23,44],[3,7,14,18,21,39],[9,14,19,23,33,41],[2,7,15,19,30,33],
+  [5,12,14,27,36,41],[1,14,23,33,39,45],[6,7,19,28,33,40],[4,14,22,23,37,41],
+  [2,8,13,25,32,42],[11,16,20,29,35,44],[3,9,18,24,31,43],[7,10,17,22,36,45],
+  [1,6,13,21,30,40],[8,15,19,27,34,42],[4,11,16,24,37,44],[5,13,20,28,33,41],
+  [10,18,22,31,36,44],[2,9,16,25,38,42],[6,12,19,28,37,43],[3,8,17,23,34,45],
+];
+
+async function fetchEuroMillionsDraws() {
+  try {
+    const res = await fetch('https://euromillions.api.pedromealha.dev/v1/draws');
+    const data = await res.json();
+    return data.map(d => d.numbers.map(Number));
+  } catch {
+    // Fallback
+    return [
+      [3,12,24,37,48],[7,15,22,33,46],[1,8,19,28,44],[5,13,21,35,47],
+      [2,11,23,36,49],[9,17,26,38,50],[4,14,20,31,45],[6,16,25,39,48],
+      [10,18,27,40,50],[1,12,22,34,46],[8,19,28,37,49],[3,15,24,35,47],
+      [7,13,21,33,48],[2,16,26,38,50],[5,11,20,32,44],[9,14,23,36,45],
+      [4,18,27,39,50],[6,15,24,33,48],[1,10,22,35,47],[8,17,26,38,49],
+    ];
+  }
+}
+
+// ── Statistics ────────────────────────────────────────────────────────────────
+function analyzeFreq(draws, max) {
+  let freq = {};
+  for (let i=1; i<=max; i++) freq[i]=0;
+  draws.forEach(d => d.forEach(n => freq[n]++));
+  const sorted = Object.entries(freq).sort((a,b)=>b[1]-a[1]);
+  return {
+    hot: sorted.slice(0,5).map(x=>+x[0]),
+    cold: sorted.slice(-5).map(x=>+x[0]),
+    freq
+  };
+}
+
+function gapAnalysis(draws, max) {
+  let last = {};
+  draws.forEach((d,i) => d.forEach(n => last[n]=i));
+  let gaps = {};
+  for (let i=1; i<=max; i++) gaps[i] = last[i]===undefined ? draws.length : draws.length-last[i];
+  return Object.entries(gaps).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>+x[0]);
+}
+
+function pairAnalysis(draws) {
+  let pairs = {};
+  draws.forEach(d => {
+    for (let i=0; i<d.length; i++)
+      for (let j=i+1; j<d.length; j++) {
+        const k = [d[i],d[j]].sort((a,b)=>a-b).join('-');
+        pairs[k] = (pairs[k]||0)+1;
+      }
+  });
+  return Object.entries(pairs).sort((a,b)=>b[1]-a[1]).slice(0,10);
+}
+
+// ── Ticket Generation ─────────────────────────────────────────────────────────
+function numPool(lp, max) {
+  let pool = new Set();
+  for (let i=0; i<10; i++) pool.add((lp+i*9)%max+1);
+  return [...pool];
+}
+function weightedPool(base, hot, gap) {
+  return [...base, ...base, ...hot, ...hot, ...hot, ...gap, ...gap];
+}
+function genTicket(pool, count=6) {
+  let t = [];
+  let tries = 0;
+  while (t.length < count && tries < 10000) {
+    const p = pool[Math.floor(Math.random()*pool.length)];
+    if (!t.includes(p)) t.push(p);
+    tries++;
+  }
+  return t.sort((a,b)=>a-b);
+}
+function monteCarlo(pool, count=6, runs=10000) {
+  let freq = {};
+  pool.forEach(n => freq[n]=0);
+  for (let i=0; i<runs; i++) genTicket(pool, count).forEach(n => freq[n]++);
+  return freq;
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+let freqChartInst=null, pairChartInst=null;
+
+function drawFreqChart(mc) {
+  const labels = Object.keys(mc).sort((a,b)=>+a-+b);
+  const data = labels.map(l=>mc[l]);
+  const max = Math.max(...data);
+  const colors = data.map(v => {
+    const t = v/max;
+    return `rgba(${Math.round(t*34)},${Math.round(245-t*51)},${Math.round(160-t*80)},0.85)`;
+  });
+  if (freqChartInst) freqChartInst.destroy();
+  freqChartInst = new Chart(document.getElementById('freqChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 2 }] },
+    options: {
+      plugins: { legend:{ display:false }, tooltip:{ callbacks:{
+        title: c => `Number ${c[0].label}`,
+        label: c => `Sim. frequency: ${c.raw}`
+      }}},
+      scales: {
+        x: { ticks:{ color:'#475569', font:{size:8} }, grid:{ color:'#1e3050' } },
+        y: { ticks:{ color:'#475569', font:{size:8} }, grid:{ color:'#1e3050' }, beginAtZero:true }
+      },
+      responsive:true, maintainAspectRatio:true
+    }
+  });
+}
+
+function drawPairChart(pairs) {
+  const labels = pairs.map(p=>p[0]);
+  const values = pairs.map(p=>p[1]);
+  const max = Math.max(...values);
+  const colors = values.map(v => {
+    const t = v/max;
+    return `rgba(${Math.round(t*59)},${Math.round(195-t*60)},${Math.round(255-t*100)},${0.3+t*0.7})`;
+  });
+  if (pairChartInst) pairChartInst.destroy();
+  pairChartInst = new Chart(document.getElementById('pairChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data:values, backgroundColor:colors, borderRadius:4 }] },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend:{ display:false }, tooltip:{ callbacks:{
+        title: c => `Pair: ${c[0].label}`,
+        label: c => `Co-appeared ${c.raw} time${c.raw!==1?'s':''}`
+      }}},
+      scales: {
+        x: { ticks:{ color:'#475569', font:{size:8} }, grid:{ color:'#1e3050' }, beginAtZero:true },
+        y: { ticks:{ color:'#94a3b8', font:{size:10, family:'Space Mono'} }, grid:{ display:false } }
+      },
+      responsive:true, maintainAspectRatio:true
+    }
+  });
+}
+
+// ── Render Tickets ────────────────────────────────────────────────────────────
+function renderTickets(ticketsArr, hot, cold) {
+  return ticketsArr.map((t,i) => {
+    const balls = t.map(n => {
+      const cls = hot.includes(n)?'hot':cold.includes(n)?'cold':'neutral';
+      const label = hot.includes(n)?'🔥 Hot':cold.includes(n)?'🧊 Cold':'⚡ Neutral';
+      return `<div class="ball ${cls}" title="${label}">${n}</div>`;
+    }).join('');
+    return `
+      <div class="ticket-row">
+        <span class="ticket-idx">#${i+1}</span>
+        <div class="ticket-balls">${balls}</div>
+        <button class="ticket-copy" onclick="copyTicket(this,'${t.join(' ')}')">Copy</button>
+      </div>`;
+  }).join('');
+}
+
+function copyTicket(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Done';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// ── History ────────────────────────────────────────────────────────────────────
+function saveToHistory(lottery, tickets) {
+  if (!document.getElementById('togAutoSave').checked) return;
+  const history = JSON.parse(localStorage.getItem('oracleHistory')||'[]');
+  history.unshift({
+    date: new Date().toLocaleString(),
+    lottery,
+    tickets
+  });
+  localStorage.setItem('oracleHistory', JSON.stringify(history.slice(0,50)));
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const history = JSON.parse(localStorage.getItem('oracleHistory')||'[]');
+  if (!history.length) {
+    list.innerHTML = `<div class="history-empty"><div class="big">📋</div>No tickets saved yet.<br>Generate tickets on the Oracle tab.</div>`;
+    return;
+  }
+  list.innerHTML = history.map(h => `
+    <div class="history-item">
+      <div class="history-meta">
+        <span>${h.lottery === 'euroMillions' ? 'EuroMillions' : 'Belgian Lotto'}</span>
+        <span>${h.date}</span>
+      </div>
+      ${h.tickets.map(t => `
+        <div class="history-balls" style="margin-bottom:6px">
+          ${t.map(n=>`<div class="history-ball">${n}</div>`).join('')}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function clearHistory() {
+  localStorage.removeItem('oracleHistory');
+  renderHistory();
+  showToast('🗑 History cleared');
+}
+
+// ── Profile persistence ────────────────────────────────────────────────────────
+function loadProfile() {
+  const name = localStorage.getItem('oracleName');
+  const date = localStorage.getItem('oracleBirthdate');
+  if (name) document.getElementById('name').value = name;
+  if (date) document.getElementById('birthdate').value = date;
+}
+
+function saveProfile() {
+  if (!document.getElementById('togRemember').checked) return;
+  localStorage.setItem('oracleName', document.getElementById('name').value);
+  localStorage.setItem('oracleBirthdate', document.getElementById('birthdate').value);
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+document.getElementById('togNotify').addEventListener('change', async function() {
+  if (!this.checked) return;
+  if (!('Notification' in window)) { showToast('Notifications not supported'); this.checked=false; return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { showToast('Permission denied'); this.checked=false; }
+  else showToast('🔔 Notifications enabled!');
+});
+
+// ── Range slider label ─────────────────────────────────────────────────────────
+document.getElementById('mcRunsSlider').addEventListener('input', function() {
+  document.getElementById('mcRunsLabel').textContent = (+this.value).toLocaleString();
+});
+
+// ── Main Oracle ────────────────────────────────────────────────────────────────
+async function runOracle() {
+  const btn = document.getElementById('btnOracle');
+  btn.classList.add('loading');
+
+  const name = document.getElementById('name').value || 'Player';
+  const date = document.getElementById('birthdate').value || '1996-04-12';
+  const lottery = document.getElementById('lotterySelect').value;
+  const lastN = document.getElementById('lastND').value;
+  const mcRuns = +document.getElementById('mcRunsSlider').value;
+
+  saveProfile();
+
+  // Numerology
+  const lp = lifePath(date), py = personalYear(date), dn = destinyNumber(name);
+  ['LP','PY','DN'].forEach(k => document.getElementById(`box${k}`).classList.add('lit'));
+  document.getElementById('valLP').textContent = lp;
+  document.getElementById('valPY').textContent = py;
+  document.getElementById('valDN').textContent = dn;
+
+  // Draws
+  let draws = [];
+  let maxNumber = lottery === 'euroMillions' ? 50 : 45;
+  if (lottery === 'euroMillions') draws = await fetchEuroMillionsDraws();
+  else draws = [...belgianLottoDraws];
+  if (lastN !== 'all') draws = draws.slice(-+lastN);
+
+  // Stats
+  const stats = analyzeFreq(draws, maxNumber);
+  const gap = gapAnalysis(draws, maxNumber);
+  const pairs = pairAnalysis(draws);
+
+  document.getElementById('chipsHot').innerHTML = stats.hot.map(n=>`<div class="chip hot" title="Hot">${n}</div>`).join('');
+  document.getElementById('chipsCold').innerHTML = stats.cold.map(n=>`<div class="chip cold" title="Cold">${n}</div>`).join('');
+  document.getElementById('chipsGap').innerHTML = gap.map(n=>`<div class="chip gap" title="Gap leader">${n}</div>`).join('');
+
+  // Tickets
+  const base = numPool(lp, maxNumber);
+  const pool = weightedPool(base, stats.hot, gap);
+  const tickets = Array.from({length:5}, () => genTicket(pool));
+  document.getElementById('ticketsList').innerHTML = renderTickets(tickets, stats.hot, stats.cold);
+
+  // Save
+  saveToHistory(lottery, tickets);
+
+  // Charts
+  const mc = monteCarlo(pool, 6, mcRuns);
+  drawFreqChart(mc);
+  drawPairChart(pairs);
+
+  // Analysis text
+  const lotteryName = lottery === 'euroMillions' ? 'EuroMillions (1–50)' : 'Belgian Lotto (1–45)';
+  const numMeaning = {1:'Leadership',2:'Cooperation',3:'Expression',4:'Foundation',5:'Freedom',6:'Harmony',7:'Wisdom',8:'Abundance',9:'Completion'};
+  document.getElementById('aiText').innerHTML = `
+    <strong>Lottery:</strong> ${lotteryName} · <strong>Draws analysed:</strong> ${draws.length}<br>
+    <strong>Life Path ${lp}</strong> — ${numMeaning[lp]||'Mastery'} · <strong>Personal Year ${py}</strong> · <strong>Destiny ${dn}</strong><br><br>
+    <strong>🔥 Hot:</strong> ${stats.hot.join(', ')} &nbsp;
+    <strong>🧊 Cold:</strong> ${stats.cold.join(', ')} &nbsp;
+    <strong>⏳ Gap:</strong> ${gap.join(', ')}<br><br>
+    <strong>Tickets:</strong><br>
+    ${tickets.map((t,i)=>`#${i+1}: ${t.join(' · ')}`).join('<br>')}
+  `;
+
+  btn.classList.remove('loading');
+  showToast('✨ Tickets generated!');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadProfile();
+// Check URL params for shortcuts
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('lottery')) {
+  document.getElementById('lotterySelect').value = urlParams.get('lottery');
+}
+</script>
+</body>
+</html>
